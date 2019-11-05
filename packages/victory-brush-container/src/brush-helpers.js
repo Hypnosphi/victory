@@ -39,6 +39,7 @@ const Helpers = {
   },
 
   getHandles(props, domainBox) {
+    const brushDimension = this.getDimension(props);
     const { x1, x2, y1, y2 } = domainBox;
     const minX = Math.min(x1, x2);
     const maxX = Math.max(x1, x2);
@@ -46,17 +47,17 @@ const Helpers = {
     const maxY = Math.max(y1, y2);
     const handleWidth = props.handleWidth / 2;
     return {
-      left: { x1: minX - handleWidth, x2: minX + handleWidth, y1, y2 },
-      right: { x1: maxX - handleWidth, x2: maxX + handleWidth, y1, y2 },
-      top: { x1, x2, y1: minY + handleWidth, y2: minY - handleWidth },
-      bottom: { x1, x2, y1: maxY + handleWidth, y2: maxY - handleWidth }
+      left: brushDimension !== "y" && { x1: minX - handleWidth, x2: minX + handleWidth, y1, y2 },
+      right: brushDimension !== "y" && { x1: maxX - handleWidth, x2: maxX + handleWidth, y1, y2 },
+      top: brushDimension !== "x" && { x1, x2, y1: minY + handleWidth, y2: minY - handleWidth },
+      bottom: brushDimension !== "x" && { x1, x2, y1: maxY + handleWidth, y2: maxY - handleWidth }
     };
   },
 
   getActiveHandles(point, props, domainBox) {
     const handles = this.getHandles(props, domainBox);
     const activeHandles = ["top", "bottom", "left", "right"].reduce((memo, opt) => {
-      memo = this.withinBounds(point, handles[opt]) ? memo.concat(opt) : memo;
+      memo = handles[opt] && this.withinBounds(point, handles[opt]) ? memo.concat(opt) : memo;
       return memo;
     }, []);
     return activeHandles.length && activeHandles;
@@ -312,27 +313,28 @@ const Helpers = {
       onBrushDomainChangeEnd,
       onBrushCleared,
       domain,
+      currentDomain,
       allowResize,
       allowDrag,
       defaultBrushArea
     } = targetProps;
 
     const defaultBrushHasArea = defaultBrushArea !== undefined && defaultBrushArea !== "none";
-    const cachedDomain = targetProps.cachedCurrentDomain || targetProps.currentDomain;
-    const currentDomain = this.getDefaultBrushArea(defaultBrushArea, domain, cachedDomain);
     const mutatedProps = { isPanning: false, isSelecting: false };
 
     // if the mouse hasn't moved since a mouseDown event, select the default brush area
     if ((allowResize || defaultBrushHasArea) && (x1 === x2 || y1 === y2)) {
-      mutatedProps.currentDomain = currentDomain;
+      const cachedDomain = targetProps.cachedCurrentDomain || currentDomain;
+      const defaultDomain = this.getDefaultBrushArea(defaultBrushArea, domain, cachedDomain);
+      mutatedProps.currentDomain = defaultDomain;
       if (isFunction(onBrushDomainChange)) {
-        onBrushDomainChange(currentDomain, defaults({}, mutatedProps, targetProps));
+        onBrushDomainChange(defaultDomain, defaults({}, mutatedProps, targetProps));
       }
       if (isFunction(onBrushDomainChangeEnd)) {
-        onBrushDomainChangeEnd(currentDomain, defaults({}, mutatedProps, targetProps));
+        onBrushDomainChangeEnd(defaultDomain, defaults({}, mutatedProps, targetProps));
       }
       if (isFunction(onBrushCleared)) {
-        onBrushCleared(currentDomain, defaults({}, mutatedProps, targetProps));
+        onBrushCleared(defaultDomain, defaults({}, mutatedProps, targetProps));
       }
     } else if ((allowDrag && isPanning) || (allowResize && isSelecting)) {
       if (isFunction(onBrushDomainChangeEnd)) {
